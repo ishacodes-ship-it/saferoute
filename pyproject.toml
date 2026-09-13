@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "saferoute"
+version = "0.1.0"
+description = "Research implementation of ETA-aligned, uncertainty-aware pedestrian safety routing (IEEE TKDE submission support code)."
+requires-python = ">=3.12"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

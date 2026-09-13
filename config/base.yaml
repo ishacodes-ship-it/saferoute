@@ -1,0 +1,110 @@
+# SafeRoute research experiment configuration.
+# Every pipeline stage (M0-M4) reads this file — never hardcode these values in code.
+# Override individual keys with a second file passed to --override, merged on top of this one.
+
+experiment_name: "safe_route_mvp_chicago"
+seed: 42
+
+city:
+  name: "chicago"
+  # Bounding box (south, west, north, east) — Chicago city limits, WGS84.
+  bbox: [41.6445, -87.9401, 42.0230, -87.5237]
+  timezone: "America/Chicago"
+
+data_sources:
+  crime:
+    provider: "chicago_socrata"
+    dataset_id: "ijzp-q8t2"          # City of Chicago crimes 2001-present
+    domain: "data.cityofchicago.org"
+    date_start: "2018-01-01"
+    date_end: "2023-12-31"
+    app_token_env: "SODAPY_APP_TOKEN"   # optional; unset works at lower rate limit
+  osm:
+    provider: "osmnx"
+    network_type: "walk"
+  weather:
+    provider: "open-meteo_archive"      # free, no key, historical hourly archive
+    variables: ["temperature_2m", "precipitation", "is_day"]
+  census:
+    provider: "census_acs5"
+    year: 2022
+    variables: ["B01003_001E", "B02001_002E", "B19013_001E"]  # population, white-alone, median income
+
+spatial:
+  h3_resolution: 9        # ~174m edge length; documented approximation of the PRD's "~100m" target (see README)
+  crs: "EPSG:4326"
+
+temporal:
+  bin_size_hours: 1
+  lookback_days_for_features: 90   # rolling window used to compute historical incident-rate features
+
+split:
+  strategy: "temporal_block"       # train/val/test split by contiguous time blocks, not random rows
+  train_end: "2022-12-31"
+  val_end: "2023-06-30"
+  test_end: "2023-12-31"
+  spatial_holdout_fraction: 0.1    # fraction of H3 cells held out entirely (never seen in train) for spatial generalization check
+
+model:
+  candidates: ["xgboost", "lightgbm", "ebm"]
+  primary: "xgboost"
+  xgboost:
+    n_estimators: 400
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+  lightgbm:
+    n_estimators: 400
+    max_depth: 6
+    learning_rate: 0.05
+    num_leaves: 31
+  ebm:
+    max_bins: 256
+    interactions: 10
+
+uncertainty:
+  method: "conformal_split"    # MAPIE split-conformal regression
+  nominal_coverage: 0.90
+  calibration_fraction: 0.2    # fraction of training data held out purely for conformal calibration
+
+routing:
+  engine: "osmnx_networkx"     # custom research layer — see README §Routing Engine Decision
+  risk_aversion_lambda: [0.0, 0.5, 1.0, 2.0, 4.0]   # ablation grid; index 2 (1.0) is the default operating point
+  uncertainty_aversion_mu: [0.0, 0.5, 1.0, 2.0]     # ablation grid; index 2 (1.0) is the default operating point
+  default_lambda: 1.0
+  default_mu: 1.0
+  n_od_pairs_eval: 200          # sampled OD pairs for routing ablations
+  departure_time_samples: ["08:00", "14:00", "20:00", "23:00", "02:00"]
+
+explainability:
+  feature_whitelist: ["lighting", "footfall", "open_businesses", "cctv", "distance_to_help"]
+  audit_sample_size: 1000       # FR-4: 1000-route whitelist-violation audit
+  faithfulness_sample_size: 200
+
+benchmark:
+  n_bootstrap: 2000
+  confidence_level: 0.95
+  detour_budget_fractions: [0.0, 0.05, 0.10, 0.15, 0.20, 0.30]
+  # Minimum origin-destination distance (meters) for counterfactual OD pairs
+  # generated near a held-out incident (benchmark/counterfactual.py). Must be
+  # several times the incident-avoidance buffer's ~500m diameter (H3 res-9
+  # 1-ring) -- otherwise even a 30% detour budget can't geometrically route
+  # around it, regardless of routing quality. Found empirically during pilot
+  # validation (see results/logs/pilot_run_notes.md), not guessed in advance.
+  min_od_distance_m: 900.0
+
+fairness:
+  adoption_rates: [0.0, 0.1, 0.3, 0.5]
+  four_fifths_lower: 0.8
+  four_fifths_upper: 1.25
+  census_geography: "tract"
+
+paths:
+  data_raw: "data/raw"
+  data_interim: "data/interim"
+  data_processed: "data/processed"
+  models: "results/models"
+  figures: "results/figures"
+  tables: "results/tables"
+  logs: "results/logs"

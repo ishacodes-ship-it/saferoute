@@ -1,0 +1,40 @@
+# Small-scale PILOT override for end-to-end pipeline validation.
+# NOT the paper-scale experiment -- a small bbox and short date range so the
+# full M0-M4 pipeline can be run and checked for correctness quickly.
+# Paper-scale results must come from config/base.yaml (full city, full date range).
+
+experiment_name: "safe_route_pilot_chicago"
+
+city:
+  # The Loop + South Loop + River North -- small, dense, well-mapped area.
+  bbox: [41.870, -87.645, 41.900, -87.610]
+
+data_sources:
+  crime:
+    date_start: "2023-01-01"
+    date_end: "2023-06-30"
+
+split:
+  train_end: "2023-04-30"
+  val_end: "2023-05-31"
+  test_end: "2023-06-30"
+  spatial_holdout_fraction: 0.1
+
+routing:
+  n_od_pairs_eval: 20
+  departure_time_samples: ["08:00", "20:00"]
+
+benchmark:
+  n_bootstrap: 200
+  # The pilot bbox is only ~3km x 4km -- a 900m-radius walk from an incident
+  # near the bbox edge often can't stay inside the loaded graph at all,
+  # producing 0 usable OD pairs (confirmed while validating this pipeline).
+  # 400m keeps the pilot runnable; it is NOT large enough relative to the
+  # ~500m incident buffer to produce a meaningful avoidance-vs-detour curve
+  # -- expect near-0% avoidance at every budget here. That is a known
+  # pilot-scale limitation, not evidence about the full-scale method.
+  min_od_distance_m: 400.0
+
+explainability:
+  audit_sample_size: 200
+  faithfulness_sample_size: 100

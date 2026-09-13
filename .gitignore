@@ -1,0 +1,37 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+
+# data — populated by scripts, not committed
+data/raw/*
+data/interim/*
+data/processed/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# results — generated artifacts, not committed
+results/figures/*
+results/tables/*
+results/logs/*
+!results/figures/.gitkeep
+!results/tables/.gitkeep
+!results/logs/.gitkeep
+!results/logs/pilot_run_notes.md
+results/*.csv
+results/*.json
+results/models/
+
+# model artifacts (both a top-level models/ and results/models/)
+models/*.pkl
+models/*.joblib
+*.osm.pbf
+
+# OSMnx/Overpass response cache
+cache/
+
+.DS_Store
+.env
